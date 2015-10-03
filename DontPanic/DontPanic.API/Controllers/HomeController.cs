@@ -12,19 +12,6 @@ namespace DontPanic.API.Controllers
 {
     public class HomeController : Controller
     {
-        /// <summary>
-        /// The SMS message body is JSON with event, long and lat properties.
-        /// </summary>
-        public class SmsMessage
-        {
-            [JsonProperty(PropertyName = "event")]
-            public string Event { get; set; }
-            [JsonProperty(PropertyName = "long")]
-            public string Longitude { get; set; }
-            [JsonProperty(PropertyName = "lat")]
-            public string Latitude { get; set; }
-        }
-
         public ActionResult Index()
         {
             ViewBag.Title = "Home Page";
@@ -68,24 +55,14 @@ namespace DontPanic.API.Controllers
             string pusherChannel =
                 ConfigurationManager.AppSettings["PUSHER_CHANNEL"];
 
-            SmsMessage sms = 
-                JsonConvert.DeserializeObject<SmsMessage>(body);
-
-            // TODO: respond to different event types. For now, we're just
-            // recreating the same JSON to pass on to Pusher
-            var jsonRequest = Json(new
-            {
-                @event = sms.Event,
-                longitude = sms.Longitude,
-                latitude = sms.Latitude
-            });
-
             var pusher = new PusherServer.Pusher(pusherAppId, pusherPublicKey,
                 pusherSecretKey);
 
-            // TODO: logging (and auto-responder?)
-            var result = pusher.Trigger(pusherChannel, "sms_panic",
-                jsonRequest.Data);
+            ISmsMessage sms = JsonConvert.DeserializeObject<ISmsMessage>(body, 
+                new SmsMessageConverter());
+
+            // An SMS message knows how to push itself...
+            var pushResponse = sms.PusherPush(pusher, pusherChannel);
         }
 
         /// <summary>
