@@ -20,7 +20,8 @@ namespace DontPanic.API
         /// </summary>
         /// <returns></returns>
         PusherServer.ITriggerResult PusherPush(
-            PusherServer.Pusher pusher, string pusherChannel);
+            PusherServer.Pusher pusher, string smsPhoneNumber, 
+            string pusherChannel);
     }
 
     /// <summary>
@@ -38,11 +39,13 @@ namespace DontPanic.API
         public string Latitude { get; set; }
 
         public PusherServer.ITriggerResult PusherPush(
-            PusherServer.Pusher pusher, string pusherChannel)
+            PusherServer.Pusher pusher, string phoneNumber, 
+            string pusherChannel)
         {
             return pusher.Trigger(pusherChannel, "sms_panic", new
             {
                 @event = Event,
+                phoneNumber = phoneNumber,
                 longitude = Longitude,
                 latitude = Latitude
             });
@@ -57,19 +60,25 @@ namespace DontPanic.API
         [JsonProperty(PropertyName = "event")]
         public string Event { get; set; }
 
-        [JsonProperty(PropertyName = "firstName")]
-        public string FirstName { get; set; }
+        [JsonProperty(PropertyName = "name")]
+        public string Name { get; set; }
 
-        [JsonProperty(PropertyName = "lastName")]
-        public string LastName { get; set; }
+        [JsonProperty(PropertyName = "nok")]
+        public string NextOfKinName { get; set; }
 
-        public ITriggerResult PusherPush(Pusher pusher, string pusherChannel)
+        [JsonProperty(PropertyName = "nokphone")]
+        public string NextOfKinPhone { get; set; }
+
+        public ITriggerResult PusherPush(Pusher pusher, string phoneNumber, 
+            string pusherChannel)
         {
-            return pusher.Trigger(pusherChannel, "register", new
+            return pusher.Trigger(pusherChannel, "sms_register", new
             {
                 @event = Event,
-                firstName = FirstName,
-                lastName = LastName
+                phoneNumber = phoneNumber,
+                name = Name,
+                nextOfKinName = NextOfKinName,
+                nextOfKinPhone = NextOfKinPhone
             });
         }
     }

@@ -12,6 +12,30 @@ namespace DontPanic.API.Controllers
 {
     public class HomeController : Controller
     {
+        // Pusher service settings
+        static readonly string PusherAppId;
+        static readonly string PusherPublicKey;
+        static readonly string PusherSecretKey;
+        static readonly string PusherChannel;
+
+        static HomeController()
+        {
+            PusherAppId = ConfigurationManager.AppSettings["PUSHER_APP_ID"];
+            PusherPublicKey = ConfigurationManager.AppSettings[
+                "PUSHER_PUBLIC_KEY"];
+            // Note: secret key is either local to this machine, or loaded from
+            // Azure's environment vars.
+            PusherSecretKey = Environment.GetEnvironmentVariable(
+                "PUSHER_SECRET");
+            if (PusherSecretKey == null)
+            {
+                PusherSecretKey =
+                    Environment.GetEnvironmentVariable("PUSHER_SECRET",
+                    EnvironmentVariableTarget.User);
+            }
+            PusherChannel = ConfigurationManager.AppSettings["PUSHER_CHANNEL"];
+        }
+
         public ActionResult Index()
         {
             ViewBag.Title = "Home Page";
@@ -19,17 +43,24 @@ namespace DontPanic.API.Controllers
             return View();
         }
 
+        /// <summary>
+        /// Process an SMS message request from the Twilio service.
+        /// </summary>
+        /// <param name="response">Currently unused.</param>
         [HttpPost]
         public void IncomingTwilio(TwilioResponse response)
         {
+            // We're encoding the request parameters in the body of the message
+            // as JSON
             if (Request.Form["Body"] != null)
             {
+                // NB: 'From' corresponds to the SMS sender's phone number
                 PushEvent(Request.Form["Body"], Request.Form["From"]);
             }
         }
 
         /// <summary>
-        /// Take Twilio message parameters and push notification event to 
+        /// Take Twilio message parameters and push a notification event to a
         /// Pusher server.
         /// </summary>
         /// <param name="body">The body of the SMS message. A JSON-encoded 
@@ -38,31 +69,14 @@ namespace DontPanic.API.Controllers
         /// SMS.</param>
         private void PushEvent(string body, string fromPhone)
         {
-            string pusherAppId =
-                ConfigurationManager.AppSettings["PUSHER_APP_ID"];
-            string pusherPublicKey =
-                ConfigurationManager.AppSettings["PUSHER_PUBLIC_KEY"];
-            // Note: secret key is either local to this machine, or loaded from
-            // Azure's environment vars.
-            string pusherSecretKey = 
-                Environment.GetEnvironmentVariable("PUSHER_SECRET");
-            if (pusherSecretKey == null)
-            {
-                pusherSecretKey =
-                    Environment.GetEnvironmentVariable("PUSHER_SECRET",
-                    EnvironmentVariableTarget.User);
-            }
-            string pusherChannel =
-                ConfigurationManager.AppSettings["PUSHER_CHANNEL"];
-
-            var pusher = new PusherServer.Pusher(pusherAppId, pusherPublicKey,
-                pusherSecretKey);
+            var pusher = new PusherServer.Pusher(PusherAppId, PusherPublicKey,
+                PusherSecretKey);
 
             ISmsMessage sms = JsonConvert.DeserializeObject<ISmsMessage>(body, 
                 new SmsMessageConverter());
 
             // An SMS message knows how to push itself...
-            var pushResponse = sms.PusherPush(pusher, pusherChannel);
+            var pushResponse = sms.PusherPush(pusher, fromPhone, PusherChannel);
         }
 
         /// <summary>
@@ -73,6 +87,12 @@ namespace DontPanic.API.Controllers
             // Garrison Lane Park, Birmingham
             string body = "{\"event\": \"panic\", \"long\": \"-1.874356\", \"lat\": \"52.479793\"}";
             PushEvent(body, "+44123456");
+        }
+
+        public void CheckRegister()
+        {
+            string body = "{\"event\": \"register\", \"name\": \"Sarah Jones\", \"nok\": \"Bob Jones\", \"nokphone\": \"+441234567\" }";
+            PushEvent(body, "+44234567");
         }
     }
 }
